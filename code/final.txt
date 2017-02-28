@@ -1,0 +1,645 @@
+#include "xtft.h"
+#include "xparameters.h"
+#include "xps2.h"
+#include "xstatus.h"
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
+#include "stdbool.h"
+#include "time.h"
+#include "xgpio.h"
+
+
+//***********************************************TO DO 1*************************************************//
+//*******Definirati konstantu TFT_FRAME_ADDR i postaviti ju na Base Address Micron RAM memorije**********//
+
+#define TFT_FRAME_ADDR 0x85000000
+//******************************************************************************************************//
+
+/**************************** Type Definitions ******************************/
+
+/********************** Definicija konstanti za boje ************************/
+
+#define FGCOLOR_VALUE		0x00FFFFFF		//Boja slova - BIJELA
+#define BGCOLOR_VALUE		0x0				//Boja pozadine - CRNA
+#define WHITECOLOR_VALUE 	0x00FFFFFF		//bijela boja
+#define RED					0xFF0000
+#define GREEN				0x00FF00
+
+/*************************** Prototipi funkcija ******************************/
+
+int TftInitialize(u32 TftDeviceId);
+int TftWriteString(XTft *InstancePtr, const u8 *CharValue);
+
+
+static XTft TftInstance;
+
+//***********************************Definirati konstantu KEYBOARD_ACK***********************************//
+
+#define KEYBOARD_ACK 0xFA
+//******************************************************************************************************//
+
+/************************** Prototipi funkcija ******************************/
+int Ps2Initialize(u16 Ps2DeviceId);
+int Ps2SendData(u8 data);
+int Ps2ReceiveData();
+
+/******************** Definicija globalnih varijabli ***********************/
+static XPs2 Ps2Inst;
+u8 SendCODE = 0xED;
+u8 RxBuffer;
+
+
+void input (int a, int b, int c, int d);
+
+int questions(void);
+
+
+#define A 0x1C
+#define B 0x32
+#define C 0x21
+#define D 0x23
+#define H 0x33
+#define S 0x1B
+#define Q 0x15
+
+#define jedan  0x16
+#define dva    0x1E
+#define tri    0x26
+#define cetiri 0x25
+#define pet    0x2E
+#define sest   0x36
+#define sedam  0x3D
+#define osam   0x3E
+#define devet  0x46
+
+#define SPACE 0x29
+#define enter 0x5A
+#define esc 0x76
+
+#define NUMBER_OF_DEFINED_QUESTIONS 20
+#define NUMBER_OF_MONEY_ROUND_QUESTIONS 10
+
+#define DATE 25012017
+
+
+int main()
+{
+
+	int Status, i;
+	int brojac = 0;
+
+	Status = TftInitialize(XPAR_VGA_CONTROLLER_DEVICE_ID);
+	if ( Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+	Status = Ps2Initialize(XPAR_PS2_0_DEVICE_ID);
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+	XTft_ClearScreen(&TftInstance);
+	TftWriteString(&TftInstance,"ENTER NUMBER 1-9");
+	while (1){
+			while(RxBuffer != 0xF0)
+				Ps2ReceiveData();
+
+			Status = Ps2ReceiveData();
+
+			if (Status != XST_SUCCESS){
+				return XST_FAILURE;
+				print("Data receiving FAILED!\r\n");
+			}
+			else{
+				xil_printf("HEX vrijednost = %x\r\n", RxBuffer);
+				if(RxBuffer == jedan || RxBuffer == dva || RxBuffer == tri || RxBuffer == cetiri
+						|| RxBuffer == pet || RxBuffer == sest || RxBuffer == sedam
+						|| RxBuffer == osam || RxBuffer == devet)
+					break;
+			}
+		}
+
+	int rand_value = (DATE % RxBuffer);
+
+
+
+	XTft_ClearScreen(&TftInstance);
+	goto mainhome;
+	mainhome:
+		XTft_ClearScreen(&TftInstance);
+		TftWriteString(&TftInstance,"     QUIZ GAME");
+		TftWriteString(&TftInstance,"\n----------------------------------------");
+		TftWriteString(&TftInstance,"\n > press S to START THE GAME");
+		TftWriteString(&TftInstance,"\n\n > press H for HELP");
+    	TftWriteString(&TftInstance,"\n\n > press Q to QUIT");
+    	TftWriteString(&TftInstance,"\n----------------------------------------\n\n");
+
+    	srand (rand_value);
+
+    	input (A, H, S, Q);
+
+    	if(RxBuffer == H)
+    		goto help;
+
+    	if(RxBuffer == S)
+    	    questions();
+
+    	if(RxBuffer == Q)
+    		{XTft_ClearScreen(&TftInstance);return 0;}
+
+   		XTft_ClearScreen(&TftInstance);
+   		goto mainhome;
+
+    	help:
+    		XTft_ClearScreen(&TftInstance);
+    		TftWriteString(&TftInstance,"     HELP");
+    		TftWriteString(&TftInstance,"\n >> There are 20 defined questions.");
+    		TftWriteString(&TftInstance,"\n >> You will be asked 10 MONEY questions.");
+    		TftWriteString(&TftInstance,"\n >> Each question is worth %3500.");
+    		TftWriteString(&TftInstance,"\n >> Player is given 4 possible answers for every question, but \n    only one is correct.");
+    		TftWriteString(&TftInstance,"\n >> There are no negative markings for wrong answers.");
+    		TftWriteString(&TftInstance,"\n\n    Press Enter to return to mainscreen.");
+    		input (enter, enter, enter, enter);
+    		if (RxBuffer == enter){
+    			goto mainhome;
+    		}
+
+
+    return XST_SUCCESS;
+}
+
+
+int TftInitialize(u32 TftDeviceId){
+
+	int Status;
+	XTft_Config *TftConfigPtr;
+
+	//***********************************************TO DO 2*************************************************//
+	//******Dohvatiti konfiguraciju VGA sucelja, povratnu vrijednost spremiti u varijablu TftConfigPtr*******//
+
+	TftConfigPtr = XTft_LookupConfig(TftDeviceId);
+	//******************************************************************************************************//
+
+	if (TftConfigPtr == (XTft_Config *)NULL) {
+		return XST_FAILURE;
+	}
+
+	//***********************************************TO DO 3*************************************************//
+	//*************************************Inicijalizirati VGA kontroler*************************************//
+
+	XTft_CfgInitialize(&TftInstance, TftConfigPtr, TftConfigPtr->BaseAddress);
+	//*******************************************************************************************************//
+
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+	//Cekanje da Vsync status bit bude postavljen u 1 kako bi bili sigurni da je
+	//prethodni frame prikazan
+	while (XTft_GetVsyncStatus(&TftInstance) !=
+        XTFT_IESR_VADDRLATCH_STATUS_MASK);
+
+
+	//***********************************************TO DO 4*************************************************//
+	//*********************************Postaviti base adresu Video Memorije**********************************//
+
+	XTft_SetFrameBaseAddr(&TftInstance, TFT_FRAME_ADDR);
+	//*******************************************************************************************************//
+
+	return XST_SUCCESS;
+}
+
+//funkcija pise znak po znak na ekran sve dok ne dode do null znaka ili kraja stringa
+int TftWriteString(XTft *InstancePtr, const u8 *CharValue)
+{
+
+	while (*CharValue != 0) {
+		XTft_Write(InstancePtr, *CharValue);
+		CharValue++;
+	}
+
+	return XST_SUCCESS;
+}
+
+/* Funkcija za inicijalizaciju tipkovnice koja prima device ID tipkovnice
+****************************************************************************/
+int Ps2Initialize(u16 Ps2DeviceId)
+{
+	XPs2_Config *Ps2ConfigPtr;
+
+	//***********************************************TO DO 1*************************************************//
+	//******Dohvatiti konfiguraciju PS2 sucelja, povratnu vrijednost spremiti u varijablu Ps2ConfigPtr*******//
+
+	Ps2ConfigPtr = XPs2_LookupConfig(Ps2DeviceId);
+	//******************************************************************************************************//
+	if (Ps2ConfigPtr == NULL) {
+		print("Config Lookup FAILED!\r\n");
+		return XST_FAILURE;
+	}
+	else
+		print("Config Lookup SUCCESS!\r\n");
+
+	//***********************************************TO DO 2*************************************************//
+	//*************************************Inicijalizirati PS2 kontroler*************************************//
+
+	XPs2_CfgInitialize(&Ps2Inst, Ps2ConfigPtr, Ps2ConfigPtr->BaseAddress);
+	//*******************************************************************************************************//
+
+	print("PS2 Initialize SUCCESS!\r\n");
+	return XST_SUCCESS;
+}
+
+/****************************************************************************/
+/* Funkcija za slanje podataka putem PS2 sucelja.
+ * Funkcija prima podatak koji treba poslati.
+****************************************************************************/
+int Ps2SendData(u8 data){
+
+	u32 StatusReg;
+	u32 BytesSent;
+	u32 BytesReceived;
+	int ACK_WAIT = 10000;
+
+	//***********************************************TO DO 3*************************************************//
+	//****Poslati 1 byte podataka putem PS2 sucelja, povratnu vrijdnost spremiti u varijablu BytesSent*******//
+
+	BytesSent = XPs2_Send(&Ps2Inst, &data, 1);
+	//*******************************************************************************************************//
+	if( BytesSent != 1) {
+		print("Data Send FAILED!\r\n");
+		return XST_FAILURE;
+	}
+
+	//Cekati dok tipkovnica ne posalje odgovor (ACK byte)
+	do {
+		StatusReg = XPs2_GetStatus(&Ps2Inst);
+		ACK_WAIT--;
+	}while((StatusReg & XPS2_STATUS_RX_FULL) == 0 && ACK_WAIT > 0);
+
+	//***********************************************TO DO 4*************************************************//
+	//****Primiti 1 byte podataka putem PS2 sucelja, povratnu vrijdnost spremiti u varijablu BytesReceived***//
+	BytesReceived = XPs2_Recv(&Ps2Inst, &RxBuffer, 1);
+
+	//*******************************************************************************************************//
+
+	//Provjeriti jel primljen ACK byte
+	if (RxBuffer != KEYBOARD_ACK) {
+		print("Nije primljen ACK byte!\r\n");
+		return XST_FAILURE;
+	}
+	else
+		xil_printf("Data %x Send SUCESS!\r\n", data);
+
+	return XST_SUCCESS;
+}
+
+/****************************************************************************/
+/* Funkcija za primanje podataka putem PS2 sucelja.
+****************************************************************************/
+int Ps2ReceiveData(){
+
+	u32 StatusReg;
+	u32 BytesReceived;
+
+	do {
+		StatusReg = XPs2_GetStatus(&Ps2Inst);
+	}while((StatusReg & XPS2_STATUS_RX_FULL) == 0);
+
+	//***********************************************TO DO 5*************************************************//
+	//***Primiti 1 byte podataka putem PS2 sucelja, povratnu vrijdnost spremiti u varijablu BytesReceived****//
+
+	BytesReceived = XPs2_Recv(&Ps2Inst, &RxBuffer, 1);
+	//*******************************************************************************************************//
+
+	return XST_SUCCESS;
+}
+
+
+void input (int a, int b, int c, int d)
+{
+	int Status;
+	while (1){
+		while(RxBuffer != 0xF0)
+			Ps2ReceiveData();
+
+		Status = Ps2ReceiveData();
+
+		if (Status != XST_SUCCESS){
+			return XST_FAILURE;
+			print("Data receiving FAILED!\r\n");
+		}
+		else{
+			xil_printf("HEX vrijednost = %x\r\n", RxBuffer);
+			if(RxBuffer == a || RxBuffer == b || RxBuffer == c || RxBuffer == d)
+				break;
+		}
+	}
+}
+
+int questions(void)
+{
+	int i, current, counter = 0;
+	int mq[21] = {0};
+
+	for (i = 0; i < NUMBER_OF_MONEY_ROUND_QUESTIONS; i++)
+	{
+		// Loop over questions until you get a new one
+
+		current = rand() % NUMBER_OF_DEFINED_QUESTIONS + 1;
+		while (mq[current] == 1)
+			{
+				current = rand() % NUMBER_OF_DEFINED_QUESTIONS  + 1;
+			}
+		mq[current] = 1;
+
+		switch(current)
+		{
+		  case 1:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWhich city is the capital of Australia?");
+			  TftWriteString(&TftInstance,"\nA. Sydney\nB. Canberra\nC. Melbourne\nD. Brisbane");
+			  input (A, B, C, D);
+			  if (RxBuffer == B)
+			  	  {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+			  	  {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is B. Canberra");}
+
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+
+		  case 2:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWhich Apollo 11 astronaut did not set foot on the moon?");
+			  TftWriteString(&TftInstance,"\nA. Neil A. Armstrong\nB. Michael Collins\nC. Edwin E. \"Buzz\" Aldrin, Jr.\nD. Jim Lovell");
+			  input (A, B, C, D);
+			  if (RxBuffer==B)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is B. Michael Collins");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 3:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nPrinciple telling us that the simplest explanation \nis more likely the correct one is known as Occam's what?");
+			  TftWriteString(&TftInstance,"\nA. Sword\nB. Arrow\nC. Razor\nD. Shaver");
+			  input (A, B, C, D);
+			  if (RxBuffer==C)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is C. Razor");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+
+		  case 4:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nThe ghost town Pripyat is found in which country?");
+			  TftWriteString(&TftInstance,"\nA. Ukraine\nB. Belarus\nC. Russia\nD.Kazakhstan");
+			  input (A, B, C, D);
+			  if (RxBuffer==A)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is A. Ukraine");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 5:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWhen did D-Day (Normandy landings (codenamed Operation Neptune)) \nhappen?");
+			  TftWriteString(&TftInstance,"\nA. 6 May 1944\nB. 6 July 1944\nC. 6 June 1945\nD. 6 June 1944");
+			  input (A, B, C, D);
+			  if (RxBuffer==D)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is D. 6 June 1944");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 6:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWhich male actor has the most number of Academy Awards \n(\"Oscars\") in the leading actor category?");
+			  TftWriteString(&TftInstance,"\nA. Jack Nicholson\nB. Marlon Brando\nC. Daniel Day-Lewis\nD. Tom Hanks");
+			  input (A, B, C, D);
+			  if (RxBuffer==C )
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is C. Daniel Day-Lewis");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+
+		  case 7:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nThe Statue of Liberty was a gift to the United States from \nwhich country?");
+			  TftWriteString(&TftInstance,"\nA. Spain\nB. Portugal\nC. Canada\nD. France");
+			  input (A, B, C, D);
+			  if (RxBuffer==D)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is D. France");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+
+		  case 8:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nJimmy Page, John Bonham, Robert Plant, John Paul Jones were \nmembers of which music band?");
+			  TftWriteString(&TftInstance,"\nA. The Doors\nB. Queen\nC. Led Zeppelin\nD. Deep Purple");
+			  input (A, B, C, D);
+			  if (RxBuffer==C)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is C. Led Zeppelin");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+
+		  case 9:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWho wrote Carrie, Salem's Lot, The Shining, The Stand?");
+			  TftWriteString(&TftInstance,"\nA. Stephen King\nB. Bram Stoker\nC. Kurt Vonnegut\nD. John Steinbeck");
+			  input (A, B, C, D);
+			  if (RxBuffer==A)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is A. Stephen King");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+
+		  case 10:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nOn the human body, a keloid is a type of what?");
+			  TftWriteString(&TftInstance,"\nA. Scars\nB. Freckles\nC. Nipples\nD. Nails");
+			  input (A, B, C, D);
+			  if (RxBuffer==A)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is A. Scars");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+
+		  case 11:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nJames Naismith invented which sport?");
+			  TftWriteString(&TftInstance,"\nA. Baseball\nB. Basketball\nC. Hockey\nD. Rugby");
+			  input (A, B, C, D);
+			  if (RxBuffer==B)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is B. Basketball");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  			  input (enter, enter, enter, enter);
+			  			  if (RxBuffer == enter) break;
+
+		  case 12:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWho is ranked 2nd in NBA all-time points list?");
+			  TftWriteString(&TftInstance,"\nA. Kobe Bryant\nB. Kareem Abdul-Jabbar\nC. Wilt Chamberlain\nD. Karl Malone");
+			  input (A, B, C, D);
+			  if (RxBuffer==D)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is D. Karl Malone");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 13:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nIn J.R.R. Tolkien's The Hobbit, how many Dwarves were \non the quest with Bilbo?");
+			  TftWriteString(&TftInstance,"\nA. 10\nB. 12\nC. 13\nD. 15");
+			  input (A, B, C, D);
+			  if (RxBuffer==C)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is C. 13");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 14:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWhich planet in the solar system is the hotest?");
+			  TftWriteString(&TftInstance,"\nA. Mercury\nB. Venus\nC. Jupiter\nD. Neptune");
+			  input (A, B, C, D);
+			  if (RxBuffer==B)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is B. Venus");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 15:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWho killed US President Abraham Lincoln?");
+			  TftWriteString(&TftInstance,"\nA. John Wilkes Booth\nB. Lee Harvey Oswald\nC. John Hinckley\nD. Michael Schiavo");
+			  input (A, B, C, D);
+			  if (RxBuffer==A)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is A. John Wilkes Booth");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 16:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWhat is the color of the bull of an archery target?");
+			  TftWriteString(&TftInstance,"\nA. Blue\nB. Red\nC. White\nD. Gold");
+			  input (A, B, C, D);
+			  if (RxBuffer==D)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is D. Gold");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+
+		  case 17:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWhat is the height of the Burj Khalifa Tower in Dubai?");
+			  TftWriteString(&TftInstance,"\nA. 634 m\nB. 628.8 m\nC. 829.8 m\nD. 885.4 m");
+			  input (A, B, C, D);
+			  if (RxBuffer==C)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is C. 829.8 m");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 18:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nOrdinary table salt is sodium chloride. What is baking soda?");
+			  TftWriteString(&TftInstance,"\nA. Sodium bicarbonate\nB. Potassium hydroxide\nC. Potassium carbonate\nD. Potassium chloride");
+			  input (A, B, C, D);
+			  if (RxBuffer==A)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is A. Sodium bicarbonate");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 19:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nBenedict Cumberbatch appears as the eponymous hero, created \nby Steve Ditko, in what 2016 superhero film?");
+			  TftWriteString(&TftInstance,"\nA. Daredevil\nB. Doctor Strange\nC. Doctor Octopus\nD. Blade");
+			  input (A, B, C, D);
+			  if (RxBuffer==B)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is B. Doctor Strange");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+		  case 20:
+			  XTft_ClearScreen(&TftInstance);
+			  TftWriteString(&TftInstance,"\nWhich reggae singing star died 11th May 1981?");
+			  TftWriteString(&TftInstance,"\nA. Peter Tosh\nB. Damian Marley\nC. Bob Marley\nD. Desmond Dekker");
+			  input (A, B, C, D);
+			  if (RxBuffer==C)
+			   {TftWriteString(&TftInstance,"\n\nCorrect!!!");counter++;}
+			  else
+					 {TftWriteString(&TftInstance,"\n\nWrong! The correct answer is C. Bob Marley");}
+			  TftWriteString(&TftInstance,"\nPress Enter for next question");
+			  input (enter, enter, enter, enter);
+			  if (RxBuffer == enter) break;
+
+	    }
+	}
+	XTft_ClearScreen(&TftInstance);
+	if (counter == 1){TftWriteString(&TftInstance,"\nNumber of correct answers: 1/10.\nYou won $7000.");}
+	else if (counter == 2){TftWriteString(&TftInstance,"\nNumber of correct answers: 2/10.\nYou won $7000.");}
+	else if (counter == 3){TftWriteString(&TftInstance,"\nNumber of correct answers: 3/10.\nYou won $10500.");}
+	else if (counter == 4){TftWriteString(&TftInstance,"\nNumber of correct answers: 4/10.\nYou won $14000.");}
+	else if (counter == 5){TftWriteString(&TftInstance,"\nNumber of correct answers: 5/10.\nYou won $17500.");}
+	else if (counter == 6){TftWriteString(&TftInstance,"\nNumber of correct answers: 6/10.\nYou won $21000.");}
+	else if (counter == 7){TftWriteString(&TftInstance,"\nNumber of correct answers: 7/10.\nYou won $24500.");}
+	else if (counter == 8){TftWriteString(&TftInstance,"\nNumber of correct answers: 8/10.\nYou won $28000.");}
+	else if (counter == 9){TftWriteString(&TftInstance,"\nNumber of correct answers: 9/10.\nYou won $31500.");}
+	else if (counter == 10){TftWriteString(&TftInstance,"\nNumber of correct answers: 10/10.\nYou won $35000.");}
+
+	TftWriteString(&TftInstance,"\nPress Enter to return to mainscreen.");
+	input (enter, enter, enter, enter);
+	if (RxBuffer == enter) return 0;
+}
+

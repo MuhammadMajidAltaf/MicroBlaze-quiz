@@ -1,0 +1,164 @@
+int convertToChar(int x)
+{
+	char d;
+	switch (x)
+	{
+	case 0x70:
+		d = '0';
+		break;
+	case 0x45:
+		d = '0';
+		break;
+	case 0x69:
+		d = '1';
+		break;
+	case 0x16:
+		d = '1';
+		break;
+	case 0x72:
+		d = '2';
+		break;
+	case 0x1E:
+		d = '2';
+		break;
+	case 0x7A:
+		d = '3';
+		break;
+	case 0x26:
+		d = '3';
+		break;
+	case 0x6B:
+		d = '4';
+		break;
+	case 0x25:
+		d = '4';
+		break;
+	case 0x73:
+		d = '5';
+		break;
+	case 0x2E:
+		d = '5';
+		break;
+	case 0x74:
+		d = '6';
+		break;
+	case 0x36:
+		d = '6';
+		break;
+	case 0x6C:
+		d = '7';
+		break;
+	case 0x3D:
+		d = '7';
+		break;
+	case 0x75:
+		d = '8';
+	case 0x3E:
+		d = '8';
+		break;
+	case 0x7D:
+		d = '9';
+		break;
+	case 0x46:
+		d = '9';
+		break;
+	case 0x15:
+		d = 'q';
+		break;
+	case 0x1D:
+		d = 'w';
+		break;
+	case 0x24:
+		d = 'e';
+		break;
+	case 0x2D:
+		d = 'r';
+		break;
+	case 0x2C:
+		d = 't';
+		break;
+	case 0x35:
+		d = 'z';
+		break;
+	case 0x3C:
+		d = 'u';
+		break;
+	case 0x43:
+		d = 'i';
+		break;
+	case 0x44:
+		d = 'o';
+		break;
+	case 0x4D:
+		d = 'p';
+		break;
+	case 0x1C:
+		d = 'a';
+		break;
+	case 0x1B:
+		d = 's';
+		break;
+	case 0x23:
+		d = 'd';
+		break;
+	case 0x2B:
+		d = 'f';
+		break;
+	case 0x34:
+		d = 'g';
+		break;
+	case 0x33:
+		d = 'h';
+		break;
+	case 0x3B:
+		d = 'j';
+		break;
+	case 0x42:
+		d = 'k';
+		break;
+	case 0x4B:
+		d = 'l';
+		break;
+	case 0x1A:
+		d = 'y';
+		break;
+	case 0x22:
+		d = 'x';
+		break;
+	case 0x21:
+		d = 'c';
+		break;
+	case 0x2A:
+		d = 'v';
+		break;
+	case 0x32:
+		d = 'b';
+		break;
+	case 0x31:
+		d = 'n';
+		break;
+	case 0x3A:
+		d = 'm';
+		break;
+	case 0x29:
+		d = ' ';
+		break;
+	case 1:
+		d = '1';
+		break;
+	case 2:
+		d = '2';
+		break;
+	case 3:
+		d = '3';
+		break;
+	case 4:
+		d = '4';
+		break;
+	default:
+		xil_printf("Fail char converter!");
+		d = '/';
+		break;
+	}
+	return d;
+}
